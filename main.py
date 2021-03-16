@@ -48,6 +48,7 @@ def get_soup(ticker, attempts=0):
 def extract_data(response):
 
     tables = response.find_all('tbody')[0:2]
+    
     return tables
 
 # res = get_data()
