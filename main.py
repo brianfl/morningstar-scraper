@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 from pandas import DataFrame
 import math
+from datetime import date
 import time
 
 def get_soup(ticker, attempts=0):
@@ -47,9 +48,60 @@ def get_soup(ticker, attempts=0):
 
 def extract_data(response):
 
+    current_year = date.today().year
     tables = response.find_all('tbody')[0:2]
+    data = {
+        'annual': {},
+        'trailing': {}
+    }
+    annual_rows = tables[0].find_all('tr')
+    trailing_rows = tables[1].find_all('tr')
+    annual_labels = [
+        'price_return', 'nav_return', 'benchmark_return', 'category_return', 'expense_ratio', 'turnover_ratio', 'category_rank'
+    ]
+    trailing_labels = [
+        'price_return', 'nav_return', 'benchmark_return', 'category_return', 'category_rank'
+    ]
+    trailing_row_tags = [
+        '1_day', '1_week', '1_month', '3_month', 'ytd', '1_year', '3_year', '5_year', '10_year', '15_year'
+    ]
+
+    if len(annual_rows) == 8: # it's a fund, drop the fourth row
+        del annual_rows[3]
+        del trailing_rows[3]
+
+    for index_r, row in enumerate(annual_rows):
+        label = annual_labels[index_r]
+        row_dict = dict()
+        data_list = []
+        for i in row.find_all('td'):
+            if len(i) == 0:
+                data_list.append('')
+            else:
+                data_list.append(i.contents[0])
+        for index_d, value in enumerate(data_list):
+            if (index_d == 10):
+                tag = 'ytd'
+            else:
+                tag = str(current_year - 10 + index_d)
+            row_dict[tag] = data_list[index_d]
+        data['annual'][label] = row_dict
+
+    for index_r, row in enumerate(trailing_rows):
+        label = trailing_labels[index_r]
+        row_dict = dict()
+        data_list = []
+        for i in row.find_all('td'):
+            if i.contents[0] == '—':
+                data_list.append('')
+            else:
+                data_list.append(i.contents[0])
+        for index_d, value in enumerate(data_list):
+            row_dict[trailing_row_tags[index_d]] = data_list[index_d]
+        data['trailing'][label] = row_dict
     
-    return tables
+    return data
+
 
 # res = get_data()
 # index = [
@@ -91,5 +143,5 @@ def extract_data(response):
 # )
 # print(dataframe)
 
-print(extract_data(get_soup('SPY')))
+print(extract_data(get_soup('spy')))
 
